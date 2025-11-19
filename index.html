@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3rd Space Map - Interactive Web App</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css" />
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Leaflet Awesome Markers -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 400px;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .filters {
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .filters h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .filter-group {
+            margin-bottom: 15px;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            font-weight: normal;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .location-count {
+            font-size: 12px;
+            color: #6c757d;
+            margin-left: auto;
+        }
+
+        .list-view {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .list-view h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .location-item {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .location-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .location-item.highlighted {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
+        }
+
+        .location-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .location-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .location-type.library {
+            background: #fee;
+            color: #c33;
+        }
+
+        .location-type.recreation {
+            background: #eef;
+            color: #33c;
+        }
+
+        .location-type.college {
+            background: #efe;
+            color: #3c3;
+        }
+
+        .location-details {
+            font-size: 14px;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .location-details div {
+            margin-bottom: 4px;
+        }
+
+        .location-details i {
+            width: 16px;
+            margin-right: 6px;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .toggle-sidebar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 16px;
+        }
+
+        .toggle-sidebar:hover {
+            background: #f8f9fa;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .no-results i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: -400px;
+                z-index: 1000;
+                height: 100%;
+                transition: left 0.3s;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-map-marked-alt"></i> 3rd Space Map</h1>
+                <p>Find libraries, recreation centers, and colleges</p>
+            </div>
+            
+            <div class="filters">
+                <h3><i class="fas fa-filter"></i> Filters</h3>
+                
+                <input type="text" 
+                       id="searchBox" 
+                       class="search-box" 
+                       placeholder="Search by name, address, or city...">
+                
+                <div class="filter-group">
+                    <label>Location Types</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="filter-library" checked>
+                            <label for="filter-library">
+                                <i class="fas fa-book" style="color: #c33;"></i>
+                                Libraries
+                                <span class="location-count" id="count-library">0</span>
+                            </label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="filter-recreation" checked>
+                            <label for="filter-recreation">
+                                <i class="fas fa-map-marker-alt" style="color: #33c;"></i>
+                                Recreation Centers
+                                <span class="location-count" id="count-recreation">0</span>
+                            </label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="filter-college" checked>
+                            <label for="filter-college">
+                                <i class="fas fa-university" style="color: #3c3;"></i>
+                                Colleges & Universities
+                                <span class="location-count" id="count-college">0</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="list-view">
+                <h3><i class="fas fa-list"></i> Locations (<span id="total-count">0</span>)</h3>
+                <div id="locationList"></div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <button class="toggle-sidebar" id="toggleSidebar" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Awesome Markers -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.min.js"></script>
+
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([39.005, -76.935], 12);
+        
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Store all locations and markers
+        let allLocations = [];
+        let allMarkers = [];
+        let currentMarkers = [];
+
+        // Location type configurations
+        const locationTypes = {
+            library: {
+                color: 'red',
+                icon: 'book',
+                label: 'Libraries',
+                filterId: 'filter-library',
+                countId: 'count-library'
+            },
+            recreation: {
+                color: 'blue',
+                icon: 'map-marker-alt',
+                label: 'Recreation Centers',
+                filterId: 'filter-recreation',
+                countId: 'count-recreation'
+            },
+            college: {
+                color: 'green',
+                icon: 'university',
+                label: 'Colleges & Universities',
+                filterId: 'filter-college',
+                countId: 'count-college'
+            }
+        };
+
+        // Function to normalize location data
+        function normalizeLocation(feature, type) {
+            const props = feature.properties;
+            const coords = feature.geometry.coordinates;
+            
+            let location = {
+                id: `${type}-${allLocations.length}`,
+                type: type,
+                name: '',
+                address: '',
+                city: '',
+                zip: '',
+                phone: '',
+                website: '',
+                lat: coords[1],
+                lng: coords[0],
+                original: props
+            };
+
+            // Extract data based on type
+            if (type === 'library') {
+                location.name = props.streetaddr || props.name || 'Library';
+                location.address = props.streetaddr || '';
+                location.city = props.city || '';
+                location.zip = props.zip || '';
+                location.website = props.systemurl || '';
+            } else if (type === 'recreation') {
+                location.name = props.NAME || props.name || 'Recreation Center';
+                location.address = props.ADDRESS || props.address || '';
+                location.city = props.CITY || props.city || '';
+                location.zip = props.ZIPCODE || props.zipcode || '';
+                location.phone = props.PHONE || props.phone_number || '';
+                location.website = props.URL || '';
+            } else if (type === 'college') {
+                location.name = props.sitename || 'College/University';
+                location.address = props.streetaddr || '';
+                location.city = props.city || '';
+                location.zip = props.zip || '';
+                location.phone = props.phonenumbe || props.tollfree_n || '';
+                location.website = props.website || '';
+            }
+
+            return location;
+        }
+
+        // Function to create marker
+        function createMarker(location) {
+            const config = locationTypes[location.type];
+            const icon = L.AwesomeMarkers.icon({
+                icon: config.icon,
+                prefix: 'fa',
+                markerColor: config.color
+            });
+
+            const marker = L.marker([location.lat, location.lng], { icon: icon });
+            
+            // Create popup content
+            let popupContent = `<div style="min-width: 200px;">
+                <h3 style="margin: 0 0 10px 0; color: #2c3e50;">${location.name}</h3>
+                <div style="font-size: 13px; color: #6c757d; line-height: 1.6;">`;
+            
+            if (location.address) popupContent += `<div><i class="fas fa-map-marker-alt"></i> ${location.address}</div>`;
+            if (location.city) popupContent += `<div>${location.city}${location.zip ? ', ' + location.zip : ''}</div>`;
+            if (location.phone) popupContent += `<div><i class="fas fa-phone"></i> ${location.phone}</div>`;
+            if (location.website) popupContent += `<div><i class="fas fa-globe"></i> <a href="${location.website}" target="_blank">Website</a></div>`;
+            
+            popupContent += `</div></div>`;
+            
+            marker.bindPopup(popupContent);
+            
+            // Store location data in marker
+            marker.location = location;
+            
+            // Add click handler to highlight in list
+            marker.on('click', function() {
+                highlightLocationInList(location.id);
+            });
+
+            return marker;
+        }
+
+        // Function to create list item
+        function createListItem(location) {
+            const config = locationTypes[location.type];
+            const item = document.createElement('div');
+            item.className = 'location-item';
+            item.id = `list-item-${location.id}`;
+            
+            let detailsHtml = '';
+            if (location.address) detailsHtml += `<div><i class="fas fa-map-marker-alt"></i> ${location.address}</div>`;
+            if (location.city) detailsHtml += `<div>${location.city}${location.zip ? ', ' + location.zip : ''}</div>`;
+            if (location.phone) detailsHtml += `<div><i class="fas fa-phone"></i> ${location.phone}</div>`;
+            if (location.website) detailsHtml += `<div><i class="fas fa-globe"></i> <a href="${location.website}" target="_blank">Visit Website</a></div>`;
+            
+            item.innerHTML = `
+                <div class="location-name">
+                    <span class="location-type ${location.type}">${config.label}</span>
+                    ${location.name}
+                </div>
+                <div class="location-details">
+                    ${detailsHtml}
+                </div>
+            `;
+            
+            // Add click handler
+            item.addEventListener('click', function() {
+                // Center map on location
+                map.setView([location.lat, location.lng], 15);
+                
+                // Open popup
+                const marker = allMarkers.find(m => m.location.id === location.id);
+                if (marker) {
+                    marker.openPopup();
+                }
+                
+                // Highlight item
+                highlightLocationInList(location.id);
+            });
+            
+            return item;
+        }
+
+        // Function to highlight location in list
+        function highlightLocationInList(locationId) {
+            // Remove previous highlights
+            document.querySelectorAll('.location-item').forEach(item => {
+                item.classList.remove('highlighted');
+            });
+            
+            // Add highlight
+            const item = document.getElementById(`list-item-${locationId}`);
+            if (item) {
+                item.classList.add('highlighted');
+                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Function to filter and update display
+        function updateDisplay() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const showLibrary = document.getElementById('filter-library').checked;
+            const showRecreation = document.getElementById('filter-recreation').checked;
+            const showCollege = document.getElementById('filter-college').checked;
+            
+            // Filter locations
+            const filtered = allLocations.filter(loc => {
+                // Type filter
+                if (loc.type === 'library' && !showLibrary) return false;
+                if (loc.type === 'recreation' && !showRecreation) return false;
+                if (loc.type === 'college' && !showCollege) return false;
+                
+                // Search filter
+                if (searchTerm) {
+                    const searchable = `${loc.name} ${loc.address} ${loc.city} ${loc.zip} ${loc.phone}`.toLowerCase();
+                    if (!searchable.includes(searchTerm)) return false;
+                }
+                
+                return true;
+            });
+            
+            // Update map markers
+            currentMarkers.forEach(marker => map.removeLayer(marker));
+            currentMarkers = [];
+            
+            filtered.forEach(location => {
+                const marker = allMarkers.find(m => m.location.id === location.id);
+                if (marker) {
+                    marker.addTo(map);
+                    currentMarkers.push(marker);
+                }
+            });
+            
+            // Update list view
+            const listContainer = document.getElementById('locationList');
+            listContainer.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="no-results">
+                        <i class="fas fa-search"></i>
+                        <p>No locations found</p>
+                    </div>
+                `;
+            } else {
+                filtered.forEach(location => {
+                    listContainer.appendChild(createListItem(location));
+                });
+            }
+            
+            // Update counts
+            document.getElementById('total-count').textContent = filtered.length;
+            
+            const counts = {
+                library: allLocations.filter(l => l.type === 'library').length,
+                recreation: allLocations.filter(l => l.type === 'recreation').length,
+                college: allLocations.filter(l => l.type === 'college').length
+            };
+            
+            document.getElementById('count-library').textContent = counts.library;
+            document.getElementById('count-recreation').textContent = counts.recreation;
+            document.getElementById('count-college').textContent = counts.college;
+        }
+
+        // Embedded local GeoJSON data to avoid CORS issues
+        const mocoRecData = {"type":"FeatureCollection","name":"Recreation_Centers_(Places_of_Interest)","crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:OGC:1.3:CRS84"}},"features":[{"type":"Feature","properties":{"OBJECTID":1,"CATEGORY":"RECREATION CENTERS","NAME":"Upper County Neighborhood Recreation Center","ADDRESS":"8201 Emory Grove Rd","CITY":"Gaithersburg","ZIPCODE":"20877","PHONE":"240-777-8077","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1264921.2499270099,"POINT_Y":540234.62511347001,"LATITUDE":39.14993326,"LONGITUDE":-77.16718248},"geometry":{"type":"Point","coordinates":[-77.167184800169849,39.149941131956417]}},{"type":"Feature","properties":{"OBJECTID":2,"CATEGORY":"RECREATION CENTERS","NAME":"Jane E Lawton Center","ADDRESS":"4301 Willow La","CITY":"Chevy Chase","ZIPCODE":"20815","PHONE":"240-777-6855","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1287265.6249878199,"POINT_Y":479218.40617664001,"LATITUDE":38.98248949,"LONGITUDE":-77.08818494},"geometry":{"type":"Point","coordinates":[-77.088187223804297,38.982497336064839]}},{"type":"Feature","properties":{"OBJECTID":3,"CATEGORY":"RECREATION CENTERS","NAME":"Plum Gar Neighborhood Recreation Center","ADDRESS":"19561 Scenery Dr","CITY":"Germantown","ZIPCODE":"20874","PHONE":"240-777-4919","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1246041.00005343,"POINT_Y":549768.68745834997,"LATITUDE":39.17599601,"LONGITUDE":-77.23384307000001},"geometry":{"type":"Point","coordinates":[-77.233845414685518,39.17600388673587]}},{"type":"Feature","properties":{"OBJECTID":4,"CATEGORY":"RECREATION CENTERS","NAME":"Clara Barton Recreation Center","ADDRESS":"7425 Mac Arthur Blv","CITY":"Cabin John","ZIPCODE":"20818","PHONE":"240-777-4910","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1268914.1249387299,"POINT_Y":475880.71887754003,"LATITUDE":38.97325868,"LONGITUDE":-77.15272337},"geometry":{"type":"Point","coordinates":[-77.15272567436358,38.973266523448665]}},{"type":"Feature","properties":{"OBJECTID":5,"CATEGORY":"RECREATION CENTERS","NAME":"Good Hope Neighborhood Rec Center (RENOVATION)","ADDRESS":"14715 Good Hope Rd","CITY":"Silver Spring","ZIPCODE":"20905","PHONE":"240-777-8055","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1316495.49995904,"POINT_Y":520749.84378331999,"LATITUDE":39.09655369,"LONGITUDE":-76.9853346},"geometry":{"type":"Point","coordinates":[-76.985336860494982,39.096561557885998]}},{"type":"Feature","properties":{"OBJECTID":6,"CATEGORY":"RECREATION CENTERS","NAME":"Gwendolyn E Coffield Recreation Center","ADDRESS":"2450 Lyttonsville Rd","CITY":"Silver Spring","ZIPCODE":"20910","PHONE":"240-777-4900","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1297852.25002168,"POINT_Y":485147.53130217001,"LATITUDE":38.99879127,"LONGITUDE":-77.05095423},"geometry":{"type":"Point","coordinates":[-77.050956508465219,38.99879911861273]}},{"type":"Feature","properties":{"OBJECTID":7,"CATEGORY":"RECREATION CENTERS","NAME":"Scotland Neighborhood Recreation Center","ADDRESS":"7700 Scotland Dr","CITY":"Potomac","ZIPCODE":"20854","PHONE":"240-777-8075","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1267243.8749531801,"POINT_Y":497027.90635323001,"LATITUDE":39.03131457,"LONGITUDE":-77.15872765},"geometry":{"type":"Point","coordinates":[-77.15872996194561,39.03132242628206]}},{"type":"Feature","properties":{"OBJECTID":8,"CATEGORY":"RECREATION CENTERS","NAME":"Germantown Recreation Center","ADDRESS":"18905 Kingsview Rd","CITY":"Germantown","ZIPCODE":"20874","PHONE":"240-777-8095","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1231505.24989589,"POINT_Y":546009.87503885,"LATITUDE":39.16556247,"LONGITUDE":-77.28507553},"geometry":{"type":"Point","coordinates":[-77.28507788677274,39.165570338322183]}},{"type":"Feature","properties":{"OBJECTID":9,"CATEGORY":"RECREATION CENTERS","NAME":"Marilyn J Praisner Community Recreation Center","ADDRESS":"14906 Old Columbia Pik","CITY":"Burtonsville","ZIPCODE":"20866","PHONE":"240-777-4970","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1328902.5000346,"POINT_Y":522587.15629702999,"LATITUDE":39.10158465,"LONGITUDE":-76.94161429},"geometry":{"type":"Point","coordinates":[-76.941616536990082,39.10159252627075]}},{"type":"Feature","properties":{"OBJECTID":10,"CATEGORY":"RECREATION CENTERS","NAME":"Bauer Drive Recreation Center","ADDRESS":"14625 Bauer Dr","CITY":"Rockville","ZIPCODE":"20853","PHONE":"240-777-6922","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1281527.2500704799,"POINT_Y":519924.06253454997,"LATITUDE":39.09423702,"LONGITUDE":-77.10854203},"geometry":{"type":"Point","coordinates":[-77.108544331294752,39.094244887526031]}},{"type":"Feature","properties":{"OBJECTID":11,"CATEGORY":"RECREATION CENTERS","NAME":"Longwood Community Recreation Center","ADDRESS":"19300 Georgia Ave","CITY":"Brookeville","ZIPCODE":"20833","PHONE":"240-777-6920","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1295030.6190430501,"POINT_Y":549239.31632185995,"LATITUDE":39.17475981,"LONGITUDE":-77.06103341},"geometry":{"type":"Point","coordinates":[-77.061035693834583,39.174767696245432]}},{"type":"Feature","properties":{"OBJECTID":12,"CATEGORY":"RECREATION CENTERS","NAME":"Potomac Community Recreation Center","ADDRESS":"11315 Falls Rd","CITY":"Potomac","ZIPCODE":"20854","PHONE":"240-777-6960","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1257931.7500165,"POINT_Y":500576.03128453001,"LATITUDE":39.04100752,"LONGITUDE":-77.19153508},"geometry":{"type":"Point","coordinates":[-77.191537400225229,39.041015368245738]}},{"type":"Feature","properties":{"OBJECTID":13,"CATEGORY":"RECREATION CENTERS","NAME":"Ross Boddy Recreation Center (RENOVATION)","ADDRESS":"18529 Brooke Rd","CITY":"Sandy Spring","ZIPCODE":"20860","PHONE":"240-777-8050","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1303307.2500907599,"POINT_Y":543425.93750044005,"LATITUDE":39.15881021,"LONGITUDE":-77.03183138},"geometry":{"type":"Point","coordinates":[-77.031833653963446,39.158818087728477]}},{"type":"Feature","properties":{"OBJECTID":14,"CATEGORY":"RECREATION CENTERS","NAME":"East County Community Recreation Center","ADDRESS":"3310 Gateshead Manor Way","CITY":"Silver Spring","ZIPCODE":"20904","PHONE":"240-777-8090","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1328901.6250266,"POINT_Y":514225.00000125001,"LATITUDE":39.07862515,"LONGITUDE":-76.94163621},"geometry":{"type":"Point","coordinates":[-76.941638457700762,39.078633019388569]}},{"type":"Feature","properties":{"OBJECTID":15,"CATEGORY":"RECREATION CENTERS","NAME":"Long Branch Community Recreation Center","ADDRESS":"8700 Piney Branch Rd","CITY":"Silver Spring","ZIPCODE":"20901","PHONE":"240-777-6965","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1312807.7500676101,"POINT_Y":485823.31242279999,"LATITUDE":39.00065785,"LONGITUDE":-76.99833067},"geometry":{"type":"Point","coordinates":[-76.998332927794422,39.000665697525243]}},{"type":"Feature","properties":{"OBJECTID":16,"CATEGORY":"RECREATION CENTERS","NAME":"Lincoln Park Community Center","ADDRESS":"357 Frederick Ave","CITY":"Rockville","ZIPCODE":"20850","PHONE":"240-314-8780","URL":"http://www.rockvillemd.gov/index.aspx?nid=1219","DATA":"Municipal","POINT_X":1271269.24276492,"POINT_Y":520086.42823070998,"LATITUDE":39.09464376,"LONGITUDE":-77.1446859},"geometry":{"type":"Point","coordinates":[-77.144688209130109,39.094651620290826]}},{"type":"Feature","properties":{"OBJECTID":17,"CATEGORY":"RECREATION CENTERS","NAME":"Twinbrook Community Center","ADDRESS":"12920 Twinbrook Pkw","CITY":"Rockville","ZIPCODE":"20851","PHONE":"240-314-8830","URL":"http://www.rockvillemd.gov/index.aspx?nid=1219","DATA":"Municipal","POINT_X":1279760.33858083,"POINT_Y":511430.48607863998,"LATITUDE":39.07091072,"LONGITUDE":-77.11472994},"geometry":{"type":"Point","coordinates":[-77.114732241808383,39.070918584412787]}},{"type":"Feature","properties":{"OBJECTID":18,"CATEGORY":"RECREATION CENTERS","NAME":"Rockville Skate Park","ADDRESS":"355 Martins La","CITY":"Rockville","ZIPCODE":"20850","PHONE":"240-314-8625","URL":"http://www.rockvillemd.gov/index.aspx?nid=1219","DATA":"Municipal","POINT_X":1267011.26132096,"POINT_Y":518284.72454903001,"LATITUDE":39.08967744,"LONGITUDE":-77.1596774},"geometry":{"type":"Point","coordinates":[-77.159679719872088,39.089685301196113]}},{"type":"Feature","properties":{"OBJECTID":19,"CATEGORY":"RECREATION CENTERS","NAME":"Croydon Creek Nature Center","ADDRESS":"852 Avery Rd","CITY":"Rockville","ZIPCODE":"20851","PHONE":"240-314-8770","URL":"http://www.rockvillemd.gov/index.aspx?nid=1219","DATA":"Municipal","POINT_X":1276443.5127217399,"POINT_Y":517603.01958839002,"LATITUDE":39.0878463,"LONGITUDE":-77.1264427},"geometry":{"type":"Point","coordinates":[-77.126445001941207,39.087854167766153]}},{"type":"Feature","properties":{"OBJECTID":20,"CATEGORY":"RECREATION CENTERS","NAME":"Activity Center At Bohrer Park","ADDRESS":"506 S Frederick Ave","CITY":"Gaithersburg","ZIPCODE":"20877","PHONE":"301-258-6350","URL":"http://www.gaithersburgmd.gov/government/departments/parks-recreation-and-culture","DATA":"Municipal","POINT_X":1257027.7113596599,"POINT_Y":534194.22677184001,"LATITUDE":39.13330572,"LONGITUDE":-77.19497077},"geometry":{"type":"Point","coordinates":[-77.194973094889008,39.133313594429168]}},{"type":"Feature","properties":{"OBJECTID":21,"CATEGORY":"RECREATION CENTERS","NAME":"Gaithersburg Skate Park","ADDRESS":"506 S Frederick Ave","CITY":"Gaithersburg","ZIPCODE":"20877","PHONE":"301-258-6359","URL":"http://www.gaithersburgmd.gov/government/departments/parks-recreation-and-culture","DATA":"Municipal","POINT_X":1256855.8403835001,"POINT_Y":534112.93653177004,"LATITUDE":39.13308152,"LONGITUDE":-77.19557605},"geometry":{"type":"Point","coordinates":[-77.19557838183195,39.13308939301033]}},{"type":"Feature","properties":{"OBJECTID":22,"CATEGORY":"RECREATION CENTERS","NAME":"Casey Community Center","ADDRESS":"810 S Frederick Ave","CITY":"Gaithersburg","ZIPCODE":"20877","PHONE":"301-258-6366","URL":"http://www.gaithersburgmd.gov/government/departments/parks-recreation-and-culture","DATA":"Municipal","POINT_X":1260908.90534728,"POINT_Y":530921.02433679998,"LATITUDE":39.12434074,"LONGITUDE":-77.18126539},"geometry":{"type":"Point","coordinates":[-77.181267713006747,39.124348604624359]}},{"type":"Feature","properties":{"OBJECTID":23,"CATEGORY":"RECREATION CENTERS","NAME":"Leonard D Jackson Ken Gar Center","ADDRESS":"4111 Plyers MIll Rd","CITY":"Kensington","ZIPCODE":"20895","PHONE":"240-777-8057","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":null,"POINT_Y":null,"LATITUDE":39.03170422,"LONGITUDE":-77.08116736},"geometry":{"type":"Point","coordinates":[-77.081169646781873,39.031712072951009]}},{"type":"Feature","properties":{"OBJECTID":24,"CATEGORY":"RECREATION CENTERS","NAME":"Olde Towne Youth Center","ADDRESS":"301 Teachers Way","CITY":"Gaithersburg","ZIPCODE":"20877","PHONE":"301-258-6440","URL":"http://www.gaithersburgmd.gov/government/departments/parks-recreation-and-culture","DATA":"Municipal","POINT_X":1259037.4209295299,"POINT_Y":538081.95720745996,"LATITUDE":39.14399147,"LONGITUDE":-77.1879141},"geometry":{"type":"Point","coordinates":[-77.18791642975799,39.143999343016198]}},{"type":"Feature","properties":{"OBJECTID":25,"CATEGORY":"RECREATION CENTERS","NAME":"Takoma Park Recreation Center","ADDRESS":"7315 New Hampshire Ave","CITY":"Takoma Park","ZIPCODE":"20912","PHONE":"301-891-7289","URL":"http://www.takomaparkmd.gov/recreation","DATA":"Municipal","POINT_X":1315750.06712635,"POINT_Y":479197.33251262002,"LATITUDE":38.98246426,"LONGITUDE":-76.98798042},"geometry":{"type":"Point","coordinates":[-76.987982670549002,38.982472105062733]}},{"type":"Feature","properties":{"OBJECTID":26,"CATEGORY":"RECREATION CENTERS","NAME":"Heffner Park Community Center","ADDRESS":"42 Oswego Ave","CITY":"Takoma Park","ZIPCODE":"20912","PHONE":"301-891-7290","URL":"http://www.takomaparkmd.gov/recreation","DATA":"Municipal","POINT_X":1309655.30078467,"POINT_Y":480214.15734556998,"LATITUDE":38.9852564,"LONGITUDE":-77.00942136},"geometry":{"type":"Point","coordinates":[-77.009423623821263,38.985264247482327]}},{"type":"Feature","properties":{"OBJECTID":27,"CATEGORY":"RECREATION CENTERS","NAME":"Gaithersburg Miniature Golf Course","ADDRESS":"514 S Frederick Ave","CITY":"Gaithersburg","ZIPCODE":"20877","PHONE":"301-258-6420","URL":"http://www.gaithersburgmd.gov/government/departments/parks-recreation-and-culture","DATA":"Municipal","POINT_X":1257130.68377576,"POINT_Y":533821.76417950005,"LATITUDE":39.13228369,"LONGITUDE":-77.19460496000001},"geometry":{"type":"Point","coordinates":[-77.194607285261455,39.132291559274663]}},{"type":"Feature","properties":{"OBJECTID":28,"CATEGORY":"RECREATION CENTERS","NAME":"Damascus Community Recreation Center","ADDRESS":"25520 Oak Dr","CITY":"Damascus","ZIPCODE":"20872","PHONE":"240-777-6930","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1251398.91340242,"POINT_Y":586599.96557264996,"LATITUDE":39.27715391,"LONGITUDE":-77.2152497},"geometry":{"type":"Point","coordinates":[-77.215252043807013,39.277161808891677]}},{"type":"Feature","properties":{"OBJECTID":29,"CATEGORY":"RECREATION CENTERS","NAME":"Robertson Park Youth Center","ADDRESS":"801 Rabbitt Rd","CITY":"Gaithersburg","ZIPCODE":"20878","PHONE":"301-258-6166","URL":"http://www.gaithersburgmd.gov/government/departments/parks-recreation-and-culture","DATA":"Municipal","POINT_X":null,"POINT_Y":null,"LATITUDE":39.14037348,"LONGITUDE":-77.23038358},"geometry":{"type":"Point","coordinates":[-77.230385921199669,39.140381351463589]}},{"type":"Feature","properties":{"OBJECTID":30,"CATEGORY":"RECREATION CENTERS","NAME":"Thomas Farm Community Center","ADDRESS":"700 Fallsgrove Dr","CITY":"Rockville","ZIPCODE":"20850","PHONE":"240-314-8840","URL":"http://www.rockvillemd.gov/index.aspx?nid=1219","DATA":"Municipal","POINT_X":null,"POINT_Y":null,"LATITUDE":39.0989287,"LONGITUDE":-77.18537448},"geometry":{"type":"Point","coordinates":[-77.185376807148302,39.098936564456174]}},{"type":"Feature","properties":{"OBJECTID":31,"CATEGORY":"RECREATION CENTERS","NAME":"Takoma Park Community Center","ADDRESS":"7500 Maple Ave","CITY":"Takoma Park","ZIPCODE":"20912","PHONE":"301-891-7100","URL":"http://www.takomaparkmd.gov/recreation","DATA":"Municipal","POINT_X":1309511.7298405401,"POINT_Y":478955.07177639997,"LATITUDE":38.98179928,"LONGITUDE":-77.00992596},"geometry":{"type":"Point","coordinates":[-77.009928225243684,38.981807123030194]}},{"type":"Feature","properties":{"OBJECTID":32,"CATEGORY":"RECREATION CENTERS","NAME":"Stedwick Community Center","ADDRESS":"10401 Stedwick Rd","CITY":"Montgomery Village","ZIPCODE":"20886","PHONE":"301-926-9793","URL":"https://www.montgomeryvillage.com/recreation/rentalscommunity-space","DATA":"Municipal","POINT_X":1251837.86866683,"POINT_Y":548106.0340168,"LATITUDE":39.17147005,"LONGITUDE":-77.21338126000001},"geometry":{"type":"Point","coordinates":[-77.213383599118245,39.171477926150217]}},{"type":"Feature","properties":{"OBJECTID":33,"CATEGORY":"RECREATION CENTERS","NAME":"Lake Marion Community Center","ADDRESS":"8821 E Village Ave","CITY":"Montgomery Village","ZIPCODE":"20886","PHONE":"301-948-8082","URL":"https://www.montgomeryvillage.com/recreation/rentalscommunity-space","DATA":"Municipal","POINT_X":1261311.3048356499,"POINT_Y":554290.61002255999,"LATITUDE":39.18850632,"LONGITUDE":-77.18000941},"geometry":{"type":"Point","coordinates":[-77.180011741416806,39.188514198075211]}},{"type":"Feature","properties":{"OBJECTID":34,"CATEGORY":"RECREATION CENTERS","NAME":"North Creek Community Center","ADDRESS":"20125 Arrowhead Rd","CITY":"Montgomery Village","ZIPCODE":"20886","PHONE":"301-948-0110","URL":"https://www.montgomeryvillage.com/recreation/rentalscommunity-space","DATA":"Municipal","POINT_X":1256805.16159945,"POINT_Y":553884.93603818002,"LATITUDE":39.18736704,"LONGITUDE":-77.19590429},"geometry":{"type":"Point","coordinates":[-77.195906625965208,39.187374917943785]}},{"type":"Feature","properties":{"OBJECTID":35,"CATEGORY":"RECREATION CENTERS","NAME":"Whetstone Community Center","ADDRESS":"19140 Brooke Grove Ct","CITY":"Montgomery Village","ZIPCODE":"20886","PHONE":"301-926-9428","URL":"https://www.montgomeryvillage.com/recreation/rentalscommunity-space","DATA":"Municipal","POINT_X":1256078.35839878,"POINT_Y":547594.21500832005,"LATITUDE":39.17009107,"LONGITUDE":-77.19842022},"geometry":{"type":"Point","coordinates":[-77.198422550355815,39.170098945250707]}},{"type":"Feature","properties":{"OBJECTID":36,"CATEGORY":"RECREATION CENTERS","NAME":"Apple Ridge Ball Field","ADDRESS":"20101 Swallow Point Rd","CITY":"Montgomery Village","ZIPCODE":"20886","PHONE":"301-948-0110","URL":"https://www.montgomeryvillage.com/recreation/parks-playgrounds","DATA":"Municipal","POINT_X":1256042.1520627399,"POINT_Y":553852.80317414994,"LATITUDE":39.18727429,"LONGITUDE":-77.19859595},"geometry":{"type":"Point","coordinates":[-77.198598280388197,39.187282168505575]}},{"type":"Feature","properties":{"OBJECTID":37,"CATEGORY":"RECREATION CENTERS","NAME":"Mid County Community Center","ADDRESS":"2004 Queensguard Rd","CITY":"Wheaton","ZIPCODE":"20906","PHONE":"240-777-6820","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1300162.81335183,"POINT_Y":517255.74739606999,"LATITUDE":39.08695321,"LONGITUDE":-77.04287718},"geometry":{"type":"Point","coordinates":[-77.042879459491957,39.086961082096899]}},{"type":"Feature","properties":{"OBJECTID":38,"CATEGORY":"RECREATION CENTERS","NAME":"Nancy H Dacek N Potomac Recreation Center","ADDRESS":"13850 Travilah Rd","CITY":"North Potomac","ZIPCODE":"20878","PHONE":"240-777-6800","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1246402.4469657601,"POINT_Y":516188.48032307002,"LATITUDE":39.08380043,"LONGITUDE":-77.23226671},"geometry":{"type":"Point","coordinates":[-77.232501739288637,39.083109941110052]}},{"type":"Feature","properties":{"OBJECTID":39,"CATEGORY":"RECREATION CENTERS","NAME":"North Bethesda Community Center (Planned)","ADDRESS":"6400 Rock Forest Dr","CITY":"Bethesda","ZIPCODE":"20817","PHONE":"240-777-6800","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1275726.1326250699,"POINT_Y":496226.28868847998,"LATITUDE":39.02915028,"LONGITUDE":-77.12886377},"geometry":{"type":"Point","coordinates":[-77.128866073038509,39.029158126905209]}},{"type":"Feature","properties":{"OBJECTID":40,"CATEGORY":"RECREATION CENTERS","NAME":"White Oak Community Recreation Center","ADDRESS":"1700 April La","CITY":"White Oak","ZIPCODE":"20904","PHONE":"240-777-6940","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1319315.7562176699,"POINT_Y":502389.70245421998,"LATITUDE":39.04614138,"LONGITUDE":-76.97541482},"geometry":{"type":"Point","coordinates":[-76.975417076752848,39.046149243255918]}},{"type":"Feature","properties":{"OBJECTID":41,"CATEGORY":"RECREATION CENTERS","NAME":"Wisconsin Place Community Center","ADDRESS":"5311 Friendship Blv","CITY":"Friendship Heights","ZIPCODE":"20815","PHONE":"240-777-8088","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1287396.0413719399,"POINT_Y":471314.79016928002,"LATITUDE":38.96078876,"LONGITUDE":-77.08769944},"geometry":{"type":"Point","coordinates":[-77.087701725207864,38.960796604326553]}},{"type":"Feature","properties":{"OBJECTID":42,"CATEGORY":"RECREATION CENTERS","NAME":"Wheaton Community Recreation Center","ADDRESS":"11701 Georgia Ave","CITY":"Wheaton","ZIPCODE":"20902","PHONE":"240-773-4825","URL":"http://www.montgomerycountymd.gov/rec/where/centers/index.html","DATA":"County","POINT_X":1297717.45845814,"POINT_Y":503060.37842447998,"LATITUDE":39.04797415,"LONGITUDE":-77.05146402},"geometry":{"type":"Point","coordinates":[-77.051466332600867,39.047981966731733]}}]};
+
+        const fourYearData = {"type":"FeatureCollection","name":"EDUC_HigherEducationPublicFourYear_MHEC","crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:OGC:1.3:CRS84"}},"features":[{"type":"Feature","properties":{"OBJECTID":1,"sitename":"Bowie State University","sitedesc":"A member of the University System of Maryland upholding the System's mission of providing accessible and affordable educational opportunities. This includes 22 undergraduate programs and 19 master's, 2 doctoral and 14 advanced certification programs.","streetaddr":"14000 Jericho Park Road","building_s":" ","city":"Bowie","county":"Prince George's","state":"MD","zip":"20715","phonenumbe":"301-860-4000","tollfree_n":"1-877-77-BOWIE","website":"http://www.bowiestate.edu","latitude":"39.018459","longitude":"-76.760766","enrollment":"5,421","grades_deg":"Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.760766562999947,39.018459455000027]}},{"type":"Feature","properties":{"OBJECTID":2,"sitename":"Coppin State University","sitedesc":"An urban, comprehensive institution offering quality undergraduate and graduate programs in education, the liberal arts, mathematics, sciences, technology and professional disciplines.","streetaddr":"2500 West North Avenue","building_s":" ","city":"Baltimore","county":"Baltimore City","state":"MD","zip":"21216","phonenumbe":"410-951-3000","tollfree_n":"1-800-635-3674","website":"http://www.coppin.edu","latitude":"39.311788","longitude":"-76.658787","enrollment":"3,612","grades_deg":"Certificates, Bachelor's & Master's"},"geometry":{"type":"Point","coordinates":[-76.658787596999957,39.311788420000028]}},{"type":"Feature","properties":{"OBJECTID":3,"sitename":"Frostburg State University","sitedesc":"Located on a 260-acre campus in Western Maryland and is part of the University System of Maryland. FSU is accredited by the Middle States Commission of Higher Education. Offering a wide range of undergraduate and graduate programs.","streetaddr":"101 Braddock Road","building_s":" ","city":"Frostburg","county":"Allegany","state":"MD","zip":"21532","phonenumbe":"301-687-4000","tollfree_n":"--","website":"http://www.frostburg.edu","latitude":"39.649503","longitude":"-78.932751","enrollment":"5,421","grades_deg":"Bachelor's & Master's"},"geometry":{"type":"Point","coordinates":[-78.932751283999949,39.649503032000041]}},{"type":"Feature","properties":{"OBJECTID":4,"sitename":"Salisbury University","sitedesc":"A member of the University System of Maryland, regionally accredited and offering 56 distinct graduate and undergraduate programs. Located on the Eastern Shore, 30 miles from the Atlantic Ocean beaches and 2.5 hours from Baltimore and Washington, D.C.","streetaddr":"1101 Camden Ave","building_s":" ","city":"Salisbury","county":"Wicomico","state":"MD","zip":"21801","phonenumbe":"410-543-6000","tollfree_n":"--","website":"http://www.salisbury.edu","latitude":"38.343398","longitude":"-75.607368","enrollment":"--","grades_deg":"Certificates, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-75.607368792999978,38.343398752000041]}},{"type":"Feature","properties":{"OBJECTID":5,"sitename":"Towson University","sitedesc":"Among the largest public universities in Maryland with nearly 22,000 students. As a metropolitan university, TU combines research-based learning with practical application and provides opportunities for research, internships and jobs.","streetaddr":"8000 York Road","building_s":" ","city":"Towson","county":"Baltimore","state":"MD","zip":"21252","phonenumbe":"410-704-2000","tollfree_n":"--","website":"http://www.towson.edu","latitude":"39.394852","longitude":"-76.616388","enrollment":"21,960","grades_deg":"Certificates, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.616388154999981,39.394852411000045]}},{"type":"Feature","properties":{"OBJECTID":6,"sitename":"University of Baltimore","sitedesc":"A public undergraduate, graduate and professional university located in the heart of the state's largest city. UB's schools and colleges provide real-world education in business, law, public affairs and the applied arts and sciences.","streetaddr":"1420 North Charles Street","building_s":" ","city":"Baltimore","county":"Baltimore City","state":"MD","zip":"21201","phonenumbe":"410-837-4200","tollfree_n":"--","website":"http://www.ubalt.edu","latitude":"39.305858","longitude":"-76.616591","enrollment":"6,558","grades_deg":"Certificates, Bachelor's & Master's"},"geometry":{"type":"Point","coordinates":[-76.616591225999969,39.305858756000077]}},{"type":"Feature","properties":{"OBJECTID":7,"sitename":"University of Maryland, Baltimore","sitedesc":"Maryland's only public health, law and human services university. Seven professional and graduate schools train the majority of the state's physicians, nurses, dentists, lawyers, social workers and pharmacists.","streetaddr":"620 West Lexington Street","building_s":" ","city":"Baltimore","county":"Baltimore City","state":"MD","zip":"21201","phonenumbe":"410-706-3100","tollfree_n":"--","website":"http://www.umaryland.edu","latitude":"39.291695","longitude":"-76.625031","enrollment":"6,368","grades_deg":"Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.625031311999976,39.291695825000033]}},{"type":"Feature","properties":{"OBJECTID":8,"sitename":"University of Maryland, Baltimore County","sitedesc":"Established as part of the University System of Maryland in 1966. A honors university specializing in science, engineering, information technology, human services and public policy to benefit the citizens of Maryland.","streetaddr":"1000 Hilltop Circle","building_s":" ","city":"Baltimore","county":"Baltimore","state":"MD","zip":"21250","phonenumbe":"410-455-1000","tollfree_n":"--","website":"http://www.umbc.edu","latitude":"39.253028","longitude":"-76.713549","enrollment":"13,637","grades_deg":"Certificates, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.713549476999958,39.253028669000059]}},{"type":"Feature","properties":{"OBJECTID":9,"sitename":"University of Maryland, College Park","sitedesc":"As the state's flagship campus of the University System of Maryland, UMCP educates students from Maryland and beyond. Ranked 13th among all public U.S. universities and 38th worldwide in a recent international survey.","streetaddr":"University of Maryland","building_s":" ","city":"College Park","county":"Prince George's","state":"MD","zip":"20742","phonenumbe":"301-405-1000","tollfree_n":"--","website":"http://www.maryland.edu/","latitude":"38.986014","longitude":"-76.945023","enrollment":"37,248","grades_deg":"Certificates, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.945023718999948,38.986014880000027]}},{"type":"Feature","properties":{"OBJECTID":10,"sitename":"University of Maryland Eastern Shore","sitedesc":"Located on 776 acres in Princess Anne, MD. This university is a member of the University System of Maryland. Offering bachelor's, master's and doctoral degrees in 38 disciplines in the arts and sciences, professional studies and agricultural sciences.","streetaddr":"30665 Student Services Center","building_s":" ","city":"Princess Anne","county":"Somerset","state":"MD","zip":"21853","phonenumbe":"410-651-7747","tollfree_n":"--","website":"http://www.umes.edu","latitude":"38.207360","longitude":"-75.686898","enrollment":"4,454","grades_deg":"Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-75.688294586999973,38.211585494000076]}},{"type":"Feature","properties":{"OBJECTID":11,"sitename":"University of Maryland University College","sitedesc":"Serving more than 95,000 students worldwide. Offering 100 academic programs in instructor-led and online classes, including bachelor's, master's and doctoral degrees, as well as, undergraduate and graduate certificates.","streetaddr":"3501 University Boulevard East","building_s":" ","city":"Adelphi","county":"Prince George's","state":"MD","zip":"20783","phonenumbe":"800-888-UMUC (8682)","tollfree_n":"--","website":"http://www.umuc.edu","latitude":"38.986069","longitude":"-76.953905","enrollment":"--","grades_deg":"Certificates, Associate's, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.953905845999941,38.986069582000027]}},{"type":"Feature","properties":{"OBJECTID":12,"sitename":"Morgan State University","sitedesc":"An important part of the higher education system in Baltimore City for over 140 years. Its designation as Maryland's Public Urban University assures that Morgan will continue to play a prominent role in the future of education in Maryland.","streetaddr":"1700 East Cold Spring Lane","building_s":" ","city":"Baltimore","county":"Baltimore City","state":"MD","zip":"21251","phonenumbe":"443-885-3333","tollfree_n":"--","website":"http://www.morgan.edu","latitude":"39.339212","longitude":"-76.581519","enrollment":"7,952","grades_deg":"Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.581519026999956,39.339212369000052]}},{"type":"Feature","properties":{"OBJECTID":13,"sitename":"St. Mary's College of Maryland","sitedesc":"A public, secular liberal arts college, established in 1840. A member of the Council of Public Liberal Arts Colleges and designated as a Public Honors College (the only one in the state of MD and one of few around the U.S.).","streetaddr":"47645 College Drive","building_s":" ","city":"St. Mary's City","county":"St. Mary's","state":"MD","zip":"20686","phonenumbe":"240-895-2000","tollfree_n":"--","website":"http://www.smcm.edu","latitude":"38.190922","longitude":"-76.429065","enrollment":"1,933","grades_deg":"Bachelor's & Master's"},"geometry":{"type":"Point","coordinates":[-76.429065683999966,38.190922625000042]}},{"type":"Feature","properties":{"OBJECTID":14,"sitename":"United States Naval Academy","sitedesc":"Founded in 1845, USNA provides midshipmen with up-to-date academic and professional training that they need to be effective naval officers in their assignments after graduation.","streetaddr":"121 Blake Road","building_s":" ","city":"Annapolis","county":"Anne Arundel","state":"MD","zip":"21402","phonenumbe":"410-293-1000","tollfree_n":"--","website":"http://www.usna.edu","latitude":"38.981700","longitude":"-76.486290","enrollment":"N/A","grades_deg":"Bachelor's"},"geometry":{"type":"Point","coordinates":[-76.48629038699994,38.98170045300003]}}]};
+
+        const twoYearData = {"type":"FeatureCollection","name":"EDUC_HigherEducationPublicTwoYear_MHEC","crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:OGC:1.3:CRS84"}},"features":[{"type":"Feature","properties":{"OBJECTID":1,"sitename":"Allegany College of Maryland","sitedesc":"A high quality, low cost educational community college with its main campus set in the mountains of Western MD and branch locations in Pennsylvania.","streetaddr":"12401 Willowbrook Road, SE","building_s":" ","city":"Cumberland","county":"Allegany","state":"MD","zip":"21502","phonenumbe":"301-784-5000","tollfree_n":" ","website":"http://www.allegany.edu","latitude":"39.652909","longitude":"-78.729744","enrollment":"3,591","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-78.729744800999981,39.652909090000037]}},{"type":"Feature","properties":{"OBJECTID":2,"sitename":"Anne Arundel Community College","sitedesc":"A fully, accredited, public, two-year institution offering credit programs leading to an associates degree, certificate or a letter of recognition. Students may prepare for transfer to a four-year institution or for an immediate career.","streetaddr":"101 College Parkway","building_s":" ","city":"Arnold","county":"Anne Arundel","state":"MD","zip":"21012","phonenumbe":"410-777-AACC (2222)","tollfree_n":" ","website":"http://www.aacc.edu","latitude":"39.049427","longitude":"-76.513049","enrollment":"17,650","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.513049524999985,39.04942783000007]}},{"type":"Feature","properties":{"OBJECTID":3,"sitename":"Baltimore City Community College - Liberty Campus","sitedesc":"1 of 4 main campus locations, Harbor Campus offers 34 degree and 25 certificate programs, including Allied Human Services, Computer Information Systems, Nursing, Teacher Education and more. Small class sizes and online options promote student success.","streetaddr":"2901 Liberty Heights Avenue","building_s":" ","city":"Baltimore","county":"Baltimore City","state":"MD","zip":"21215","phonenumbe":"410-462-8300","tollfree_n":" ","website":"http://www.bccc.edu","latitude":"39.320025","longitude":"-76.662795","enrollment":"5,480","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.662795236999955,39.32002560400008]}},{"type":"Feature","properties":{"OBJECTID":4,"sitename":"Carroll Community College","sitedesc":"Carroll County's premier learning community for convenient, affordable, state-of-the-market, post-secondary training, baccalaureate preparation and lifelong education.","streetaddr":"1601 Washington Road","building_s":" ","city":"Westminster","county":"Carroll","state":"MD","zip":"21157","phonenumbe":"410-386-8000","tollfree_n":" ","website":"http://www.carrollcc.edu","latitude":"39.531898","longitude":"-76.990953","enrollment":"4,103","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.990953765999961,39.531898486000046]}},{"type":"Feature","properties":{"OBJECTID":5,"sitename":"Community College of Baltimore County - Catonsville Campus","sitedesc":"Provides an accessible, affordable and high-quality education that prepares students for transfer and career success, strengthens the regional work force and enriches the community.","streetaddr":"800 South Rolling Road","building_s":" ","city":"Baltimore","county":"Baltimore","state":"MD","zip":"21228","phonenumbe":"443-840-2222","tollfree_n":" ","website":"http://www.ccbcmd.edu","latitude":"39.252641","longitude":"-76.733166","enrollment":"25,188","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.733166901999937,39.252641203000053]}},{"type":"Feature","properties":{"OBJECTID":6,"sitename":"Cecil College","sitedesc":"A comprehensive, open-admission, learner-centered institution. Providing career, transfer and continuing education coursework and programs that anticipate and meet the dynamic intellectual, cultural and economic development challendes of Cecil County.","streetaddr":"1 Seahawk Drive","building_s":" ","city":"North East","county":"Cecil","state":"MD","zip":"21901","phonenumbe":"410-287-1000","tollfree_n":" ","website":"http://www.cecil.edu","latitude":"39.641074","longitude":"-75.956434","enrollment":"2,697","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-75.956434546999958,39.641074636000042]}},{"type":"Feature","properties":{"OBJECTID":7,"sitename":"College of Southern Maryland - Prince Frederick Campus","sitedesc":"1 of 3 main campus locations, making up this public, regional community college system. The Prince Frederick Campus offers distance learning interactive classroom and a Career and Academic Services Center. Providing access to over 120 programs of study.","streetaddr":"115 J. W. Williams Road","building_s":" ","city":"Prince Frederick","county":"Calvert","state":"MD","zip":"20678","phonenumbe":"443-550-6000","tollfree_n":" ","website":"http://www.csmd.edu","latitude":"38.535051","longitude":"-76.607470","enrollment":"See La Plata Campus for Enrollment Numbers","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.607470599999942,38.535051782000039]}},{"type":"Feature","properties":{"OBJECTID":8,"sitename":"Chesapeake College","sitedesc":"Founded in 1965 as Maryland's first regional community college. Today, the college continues to respond to the growing needs of the upper and middle Eastern Shore, which compose its service area.","streetaddr":"1000 College Circle","building_s":"P.O. Box 8","city":"Wye Mills","county":"Queen Anne's","state":"MD","zip":"21679","phonenumbe":"410-822-5400","tollfree_n":" ","website":"http://www.chesapeake.edu","latitude":"38.952153","longitude":"-76.083695","enrollment":"2,660","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.083695927999941,38.95215302500003]}},{"type":"Feature","properties":{"OBJECTID":9,"sitename":"Frederick Community College","sitedesc":"Prepares individuals to meet the challenges of a diverse, global society through quality, accessible, innovative, life-long learning. FCC offers courses, degrees, certificates and programs for workforce preparation, transfer and personal enrichment.","streetaddr":"7932 Opossumtown Pike","building_s":" ","city":"Frederick","county":"Frederick","state":"MD","zip":"21702","phonenumbe":"301-846-2400","tollfree_n":" ","website":"http://www.frederick.edu","latitude":"39.452198","longitude":"-77.417886","enrollment":"6,159","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-77.417886125999985,39.452198700000054]}},{"type":"Feature","properties":{"OBJECTID":10,"sitename":"Garrett College","sitedesc":"This 62-acre campus is surrounded by forests, lakes and rivers that serve as outdoor classrooms and recreation sites for students. The main campus is 15 miles from I-68 on U.S. 219. Outreach centers are located in Grantsville, Accident and Oakland.","streetaddr":"687 Mosser Road","building_s":" ","city":"McHenry","county":"Garrett","state":"MD","zip":"21541","phonenumbe":"301-387-3000","tollfree_n":" ","website":"http://www.garrettcollege.edu","latitude":"39.560933","longitude":"-79.341740","enrollment":"875","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-79.341740641999934,39.560933563000049]}},{"type":"Feature","properties":{"OBJECTID":11,"sitename":"Hagerstown Community College","sitedesc":"Offering more than 100 programs of study for university transfer, career preparation or personal development, as well as, non-credit continuing education courses, customized training programs and Washington County's adult education program.","streetaddr":"11400 Robinwood Drive","building_s":" ","city":"Hagerstown","county":"Washington","state":"MD","zip":"21742","phonenumbe":"240-500-2000","tollfree_n":" ","website":"http://www.hagerstowncc.edu","latitude":"39.630972","longitude":"-77.667326","enrollment":"5,034","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-77.66732680399997,39.630972092000036]}},{"type":"Feature","properties":{"OBJECTID":12,"sitename":"Harford Community College","sitedesc":"Provides high-quality, accessible and affordable educational opportunities and services - including transfer, career developmental and continuing education programs - that promote professional competence, economic development and improve quality of life.","streetaddr":"401 Thomas Run Road","building_s":" ","city":"Bel Air","county":"Harford","state":"MD","zip":"21015","phonenumbe":"443-412-2000","tollfree_n":" ","website":"http://www.harford.edu","latitude":"39.561283","longitude":"-76.282254","enrollment":"7,226","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.282254682999962,39.561283125000045]}},{"type":"Feature","properties":{"OBJECTID":13,"sitename":"Howard Community College","sitedesc":"A public institution with the mission to help anyone with an educational goal. Including getting a two-year degree, starting a four-year degree at HCC, entering a new career, sharpening job skills or exploring personal interests.","streetaddr":"10901 Little Patuxent Parkway","building_s":" ","city":"Columbia","county":"Howard","state":"MD","zip":"21044","phonenumbe":"443-518-1000","tollfree_n":" ","website":"http://www.howardcc.edu","latitude":"39.213795","longitude":"-76.880090","enrollment":"10,150","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.880090550999967,39.213795107000067]}},{"type":"Feature","properties":{"OBJECTID":14,"sitename":"Montgomery College - Rockville Campus","sitedesc":"A two-year public institution serving nearly 60,000 students a year as they pursue a wide variety of educational goals. 130 majors and programs are offered on three campuses throughout Montgomery County.","streetaddr":"51 Mannakee Street","building_s":" ","city":"Rockville","county":"Montgomery","state":"MD","zip":"20850","phonenumbe":"240-567-5000","tollfree_n":" ","website":"http://cms.montgomerycollege.edu/edu/","latitude":"39.097937","longitude":"-77.159511","enrollment":"27,453","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-77.159511142999975,39.097937496000043]}},{"type":"Feature","properties":{"OBJECTID":15,"sitename":"Prince George's Community College","sitedesc":"Providing high-quality educational opportunities with more than 100 programs of study, inlcuding distance learning options, prepare students to embark on a new career, upgrade employment skills or transfer to a four-year institution.","streetaddr":"301 Largo Road","building_s":" ","city":"Largo","county":"Prince George's","state":"MD","zip":"20774","phonenumbe":"301-336-6000","tollfree_n":" ","website":"http://www.pgcc.edu","latitude":"38.888855","longitude":"-76.826197","enrollment":"13,665","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.826197337999986,38.888855350000028]}},{"type":"Feature","properties":{"OBJECTID":16,"sitename":"Wor-Wic Community College","sitedesc":"Provides a supportive learning environment that promotes student success through excellence in instruction, programs and services that meet the diverse needs and exceed the expectations of the residents of Maryland's Lower Shore.","streetaddr":"32000 Campus Drive","building_s":" ","city":"Salisbury","county":"Wicomico","state":"MD","zip":"21804","phonenumbe":"410-334-2800","tollfree_n":" ","website":"http://www.worwic.edu","latitude":"38.373836","longitude":"-75.501396","enrollment":"3,739","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-75.501396154999952,38.373836769000036]}},{"type":"Feature","properties":{"OBJECTID":17,"sitename":"College of Southern Maryland - La Plata Campus","sitedesc":"1 of 3 main campus locations, making up this public, regional community college system. The LaPlata Campus offers high-tech computer laboratories and state-of-the-art conference center. Providing access to over 120 programs of study.","streetaddr":"8730 Mitchell Road","building_s":"P.O. Box 910","city":"LaPlata","county":"Charles","state":"MD","zip":"20646","phonenumbe":"301-934-2251","tollfree_n":" ","website":"http://www.csmd.edu","latitude":"38.559970","longitude":"-77.008626","enrollment":"9,210","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-77.008626578999952,38.559970379000049]}},{"type":"Feature","properties":{"OBJECTID":18,"sitename":"College of Southern Maryland - Leonardtown Campus","sitedesc":"1 of 3 main campus locations, making up this public, regional community college system. The Leonardtown Campus offers advanced technology, electronics and physiology science labs. Providing access to over 120 programs of study.","streetaddr":"22950 Hollywood Road","building_s":" ","city":"Leonardtown","county":"St. Mary's","state":"MD","zip":"20650","phonenumbe":"240-725-5300","tollfree_n":" ","website":"http://www.csmd.edu","latitude":"38.297849","longitude":"-76.632990","enrollment":"See La Plata Campus for Enrollment Numbers","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.632990996999979,38.297849620000079]}},{"type":"Feature","properties":{"OBJECTID":19,"sitename":"Community College of Baltimore County - Dundalk Campus","sitedesc":"Provides an accessible, affordable and high-quality education that prepares students for transfer and career success, strengthens the regional work force and enriches the community.","streetaddr":"7200 Sollers Point Road","building_s":" ","city":"Baltimore","county":"Baltimore","state":"MD","zip":"21222","phonenumbe":"443-840-2222","tollfree_n":" ","website":"http://www.ccbcmd.edu","latitude":"39.266095","longitude":"-76.512728","enrollment":"See Catonsville Campus for Enrollment Numbers","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.512728995999964,39.266095620000044]}},{"type":"Feature","properties":{"OBJECTID":20,"sitename":"Community College of Baltimore County - Essex Campus","sitedesc":"Provides an accessible, affordable and high-quality education that prepares students for transfer and career success, strengthens the regional work force and enriches the community.","streetaddr":"7201 Rossville Boulevard","building_s":" ","city":"Baltimore","county":"Baltimore","state":"MD","zip":"21237","phonenumbe":"443-840-2222","tollfree_n":" ","website":"http://www.ccbcmd.edu","latitude":"39.353217","longitude":"-76.481514","enrollment":"See Catonsville Campus for Enrollment Numbers","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-76.481514592999986,39.35321762600006]}},{"type":"Feature","properties":{"OBJECTID":21,"sitename":"Montgomery College - Germantown Campus","sitedesc":"A two-year public institution serving nearly 60,000 students a year as they pursue a wide variety of educational goals. 130 majors and programs are offered on three campuses throughout Montgomery County.","streetaddr":"20200 Observation Drive","building_s":" ","city":"Germantown","county":"Montgomery","state":"MD","zip":"20876","phonenumbe":"240-567-7700","tollfree_n":" ","website":"http://cms.montgomerycollege.edu/edu/","latitude":"39.186965","longitude":"-77.247686","enrollment":"See Rockville Campus for Enrollment Numbers","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-77.247686407999936,39.186965623000049]}},{"type":"Feature","properties":{"OBJECTID":22,"sitename":"Montgomery College - Takoma Park/Silver Spring Campus","sitedesc":"A two-year public institution serving nearly 60,000 students a year as they pursue a wide variety of educational goals. 130 majors and programs are offered on three campuses throughout Montgomery County.","streetaddr":"7600 Takoma Avenue","building_s":" ","city":"Takoma Park","county":"Montgomery","state":"MD","zip":"20912","phonenumbe":"240-567-1300","tollfree_n":" ","website":"http://cms.montgomerycollege.edu/edu/","latitude":"38.985134","longitude":"-77.022463","enrollment":"See Rockville Campus for Enrollment Numbers","grades_deg":"Certificates & Associate's"},"geometry":{"type":"Point","coordinates":[-77.022463588999983,38.985134619000064]}}]};
+
+        const regionalData = {"type":"FeatureCollection","name":"EDUC_HigherEducationRegionalEducationCenters_MHEC","crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:OGC:1.3:CRS84"}},"features":[{"type":"Feature","properties":{"OBJECTID":1,"sitename":"Anne Arundel Community College at Arundel Mills","sitedesc":" ","streetaddr":"7009 Arundel Mills Circle","building_s":" ","city":"Hanover","county":"Anne Arundel","state":"MD","zip":"21076","phonenumbe":"410-777-2010","tollfree_n":" ","website":"http://www.aacc.edu/rhec/","latitude":"39.162564","longitude":"-76.723746","enrollment":"N/A","grades_deg":"Certificates, Bachelor's & Master's"},"geometry":{"type":"Point","coordinates":[-76.723744364999959,39.162556926000036]}},{"type":"Feature","properties":{"OBJECTID":2,"sitename":"Eastern Shore Higher Education Center","sitedesc":" ","streetaddr":"1000 College Circle","building_s":"P.O. Box 8","city":"Wye Mills","county":"Queen Anne's","state":"MD","zip":"21679","phonenumbe":"410-827-5761","tollfree_n":" ","website":"http://www.chesapeake.edu/eshec/","latitude":"38.953981","longitude":"-76.085616","enrollment":"N/A","grades_deg":"Bachelor's & Master's"},"geometry":{"type":"Point","coordinates":[-76.085614894999935,38.953973526000027]}},{"type":"Feature","properties":{"OBJECTID":3,"sitename":"Higher Education and Applied Technology Center","sitedesc":" ","streetaddr":"1201 Technology Drive","building_s":" ","city":"Aberdeen","county":"Harford","state":"MD","zip":"21001","phonenumbe":"443-360-9200","tollfree_n":" ","website":"http://www.heatcentermaryland.com/","latitude":"39.528406","longitude":"-76.197247","enrollment":"N/A","grades_deg":"Certificates, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.197245917999965,39.528398109000079]}},{"type":"Feature","properties":{"OBJECTID":4,"sitename":"Laurel College Center","sitedesc":" ","streetaddr":"312 Marshall Avenue","building_s":"Suite 205","city":"Laurel","county":"Prince George's","state":"MD","zip":"20707","phonenumbe":"443-518-4162","tollfree_n":" ","website":"http://www.laurelcollegecenter.org/","latitude":"39.097565","longitude":"-76.852930","enrollment":"N/A","grades_deg":"Certificates, Associate's, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.852928652999935,39.097557817000052]}},{"type":"Feature","properties":{"OBJECTID":5,"sitename":"Southern Maryland Higher Education Center","sitedesc":" ","streetaddr":"44219 Airport Road","building_s":"Wildewood Professional and Technology Park","city":"California","county":"St. Mary's","state":"MD","zip":"20619","phonenumbe":"301-737-2500","tollfree_n":" ","website":"http://www.smhec.org/Pages/Default.aspx","latitude":"38.312842","longitude":"-76.545035","enrollment":"N/A","grades_deg":"Certificates, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-76.545033886999988,38.31283436800004]}},{"type":"Feature","properties":{"OBJECTID":6,"sitename":"The Universities at Shady Grove","sitedesc":" ","streetaddr":"9630 Gudelsky Drive","building_s":" ","city":"Rockville","county":"Montgomery","state":"MD","zip":"20850","phonenumbe":"301-738-6000","tollfree_n":" ","website":"http://www.shadygrove.umd.edu/","latitude":"39.093862","longitude":"-77.200980","enrollment":"N/A","grades_deg":"Certificates, Bachelor's, Master's & Doctorates"},"geometry":{"type":"Point","coordinates":[-77.200977641999941,39.093854531000034]}},{"type":"Feature","properties":{"OBJECTID":7,"sitename":"University of Maryland at Hagerstown","sitedesc":" ","streetaddr":"32 West Washington Street","building_s":" ","city":"Hagerstown","county":"Washington","state":"MD","zip":"21740","phonenumbe":"240-527-2060","tollfree_n":" ","website":"http://www.hagerstown.usmd.edu/","latitude":"39.642692","longitude":"-77.721184","enrollment":"N/A","grades_deg":"Certificates, Bachelor's & Master's"},"geometry":{"type":"Point","coordinates":[-77.721181454999964,39.642684144000043]}},{"type":"Feature","properties":{"OBJECTID":8,"sitename":"Waldorf Center for Higher Education","sitedesc":" ","streetaddr":"3261 Old Washington Road","building_s":"Suite 1020","city":"Waldorf","county":"Charles","state":"MD","zip":"20602","phonenumbe":"301-632-2900","tollfree_n":" ","website":"http://www.waldorfcenter.org/","latitude":"38.622569","longitude":"-76.911460","enrollment":"N/A","grades_deg":"Associate's & Bachelor's"},"geometry":{"type":"Point","coordinates":[-76.91145875899997,38.622561318000066]}}]};
+
+        // Load data and initialize
+        async function loadData() {
+            try {
+                // Load libraries (remote API)
+                const librariesRes = await fetch('https://opendata.maryland.gov/resource/gf92-mnx2.geojson');
+                const libraries = await librariesRes.json();
+                
+                libraries.features.forEach(feature => {
+                    const location = normalizeLocation(feature, 'library');
+                    allLocations.push(location);
+                    const marker = createMarker(location);
+                    allMarkers.push(marker);
+                });
+                
+                // Load Montgomery County Recreation Centers (embedded)
+                mocoRecData.features.forEach(feature => {
+                    const location = normalizeLocation(feature, 'recreation');
+                    allLocations.push(location);
+                    const marker = createMarker(location);
+                    allMarkers.push(marker);
+                });
+                
+                // Load PG County Recreation Centers (remote API)
+                const pgRes = await fetch('https://data.princegeorgescountymd.gov/resource/tjx4-iqzx.geojson');
+                const pgRec = await pgRes.json();
+                
+                pgRec.features.forEach(feature => {
+                    const location = normalizeLocation(feature, 'recreation');
+                    allLocations.push(location);
+                    const marker = createMarker(location);
+                    allMarkers.push(marker);
+                });
+                
+                // Load colleges (embedded)
+                fourYearData.features.forEach(feature => {
+                    const location = normalizeLocation(feature, 'college');
+                    allLocations.push(location);
+                    const marker = createMarker(location);
+                    allMarkers.push(marker);
+                });
+                
+                twoYearData.features.forEach(feature => {
+                    const location = normalizeLocation(feature, 'college');
+                    allLocations.push(location);
+                    const marker = createMarker(location);
+                    allMarkers.push(marker);
+                });
+                
+                regionalData.features.forEach(feature => {
+                    const location = normalizeLocation(feature, 'college');
+                    allLocations.push(location);
+                    const marker = createMarker(location);
+                    allMarkers.push(marker);
+                });
+                
+                // Initial display
+                updateDisplay();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('locationList').innerHTML = `
+                    <div class="no-results">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error loading data. Please check the console.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('searchBox').addEventListener('input', updateDisplay);
+        document.getElementById('filter-library').addEventListener('change', updateDisplay);
+        document.getElementById('filter-recreation').addEventListener('change', updateDisplay);
+        document.getElementById('filter-college').addEventListener('change', updateDisplay);
+
+        // Toggle sidebar (for mobile)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        // Load data on page load
+        loadData();
+    </script>
+</body>
+</html>
+
